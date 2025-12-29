@@ -41,6 +41,10 @@ const DriverPanel: React.FC<DriverPanelProps> = ({
   const [analyzing, setAnalyzing] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // State for List Item AI Analysis
+  const [cardAnalyses, setCardAnalyses] = useState<Record<string, string>>({});
+  const [cardAnalyzing, setCardAnalyzing] = useState<Record<string, boolean>>({});
+
   // Filter requests that are active or bidding
   const openRequests = bookings.filter(b => b.status === BookingStatus.BIDDING || b.status === BookingStatus.PENDING);
 
@@ -76,6 +80,20 @@ const DriverPanel: React.FC<DriverPanelProps> = ({
     );
     setAiAnalysis(result);
     setAnalyzing(false);
+  };
+
+  const handleCardAnalyze = async (booking: BookingRequest) => {
+    if (cardAnalyses[booking.id]) return; // Avoid refetching if already exists
+    
+    setCardAnalyzing(prev => ({ ...prev, [booking.id]: true }));
+    const result = await analyzeRouteAndCosts(
+      booking.pickupLocation,
+      booking.dropLocation,
+      booking.distanceKm,
+      booking.truckType
+    );
+    setCardAnalyses(prev => ({ ...prev, [booking.id]: result }));
+    setCardAnalyzing(prev => ({ ...prev, [booking.id]: false }));
   };
 
   const calculateCosts = (distance: number, bid: number) => {
@@ -161,23 +179,43 @@ const DriverPanel: React.FC<DriverPanelProps> = ({
           openRequests.map(req => (
             <div key={req.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition">
               <div className="flex justify-between items-start">
-                 <div>
+                 <div className="flex-1">
                     <h3 className="font-semibold text-lg text-slate-800">{req.materialType} <span className="text-slate-400 font-normal">({req.weightKg} kg)</span></h3>
                     <div className="flex flex-col gap-1 mt-2 text-sm text-slate-600">
                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500" /> {req.pickupLocation}</div>
                        <div className="h-4 border-l-2 border-slate-200 ml-[3px]" />
                        <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> {req.dropLocation}</div>
                     </div>
-                    <div className="mt-3 inline-flex items-center gap-2 bg-slate-100 px-3 py-1 rounded text-xs font-medium text-slate-600">
-                      <Truck className="w-3 h-3" /> {req.truckType} • {req.distanceKm} km
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="inline-flex items-center gap-2 bg-slate-100 px-3 py-1 rounded text-xs font-medium text-slate-600">
+                        <Truck className="w-3 h-3" /> {req.truckType} • {req.distanceKm} km
+                      </div>
+                      <button
+                        onClick={() => handleCardAnalyze(req)}
+                        disabled={cardAnalyzing[req.id]}
+                        className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium transition disabled:opacity-50"
+                      >
+                        <BrainCircuit className="w-3 h-3" />
+                        {cardAnalyzing[req.id] ? 'Analyzing...' : 'AI Route Insights'}
+                      </button>
                     </div>
+
+                    {/* Inline AI Analysis Result */}
+                    {cardAnalyses[req.id] && (
+                        <div className="mt-3 p-3 bg-indigo-50 rounded-lg text-xs text-indigo-900 border border-indigo-100 animate-in fade-in slide-in-from-top-1">
+                            <div className="font-semibold mb-1 flex items-center gap-1">
+                                <BrainCircuit className="w-3 h-3" /> AI Analysis
+                            </div>
+                            {cardAnalyses[req.id]}
+                        </div>
+                    )}
                  </div>
-                 <div className="text-right flex flex-col items-end">
+                 <div className="text-right flex flex-col items-end pl-4">
                     <span className="text-sm text-slate-400">Est. Budget</span>
                     <span className="text-2xl font-bold text-slate-900">${req.budget}</span>
                     <button 
                       onClick={() => handleOpenBid(req)}
-                      className="mt-3 bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+                      className="mt-3 bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-indigo-700 transition shadow-sm shadow-indigo-200"
                     >
                       Make Offer
                     </button>

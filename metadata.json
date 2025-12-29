@@ -1,0 +1,7 @@
+{
+  "name": "Copy of SSK Trucker",
+  "description": "A modern, real-time truck booking platform connecting customers, drivers, and fleet owners with AI-powered route analysis.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
